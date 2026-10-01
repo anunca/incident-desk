@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, describe, it, expect } from "vitest";
 import { randomUUID } from "node:crypto";
-import { buildApp } from "../src/app.js";
-import { hashPassword, tokenHash } from "../src/security.js";
+import { buildApp } from "../src/server/app.js";
+import { hashPassword, tokenHash } from "../src/server/security/crypto.js";
 import { MemoryStore } from "./memory.js";
 let store: MemoryStore;
 let app: Awaited<ReturnType<typeof buildApp>>;
@@ -160,6 +160,32 @@ describe("API security and lifecycle", () => {
     const r = await app.inject("/");
     expect(r.statusCode).toBe(200);
     expect(r.headers["content-security-policy"]).toContain("script-src 'self'");
+  });
+  it("keeps HTTPS policy in production and allows HTTP development", async () => {
+    const production = await app.inject("/");
+    expect(production.headers["strict-transport-security"]).toBeDefined();
+    expect(production.headers["content-security-policy"]).toContain(
+      "upgrade-insecure-requests",
+    );
+    const local = await buildApp(store, { development: true });
+    try {
+      const response = await local.inject("/");
+      expect(response.headers["strict-transport-security"]).toBeUndefined();
+      expect(response.headers["content-security-policy"]).not.toContain(
+        "upgrade-insecure-requests",
+      );
+      const login = await local.inject({
+        method: "POST",
+        url: "/api/session",
+        payload: {
+          email: "admin@example.test",
+          password: "correct-password-123",
+        },
+      });
+      expect(login.headers["set-cookie"]).not.toContain("Secure");
+    } finally {
+      await local.close();
+    }
   });
   it("rate limits repeated login attempts", async () => {
     let status = 0;

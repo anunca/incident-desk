@@ -1,10 +1,10 @@
 # Incident Desk
 
-Projet de démonstration professionnel : suivi d’incidents avec API TypeScript, PostgreSQL et interface web légère. Il montre des choix explicables et testables, sans prétendre remplacer un outil de gestion d’incidents de production.
+Projet de démonstration professionnel : suivi d’incidents avec API TypeScript, PostgreSQL et interface web React. Il montre des choix explicables et testables, sans prétendre remplacer un outil de gestion d’incidents de production.
 
 ## Démonstration en cinq minutes
 
-Prérequis : Node.js 24 LTS, npm, Docker avec Compose v2. Sur macOS, Docker Desktop ou un moteur compatible.
+Prérequis : Node.js 26, npm, Docker avec Compose v2. Sur macOS, Docker Desktop ou un moteur compatible.
 
 ```sh
 npm ci
@@ -29,12 +29,12 @@ Ouvrir http://localhost:3000, se connecter, créer un incident, changer son stat
 
 | Pratique                                                         | Preuve dans le dépôt                                                          |
 | ---------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Modélisation métier et transitions explicites                    | `src/domain.ts`                                                               |
-| Validation stricte et taille des requêtes limitée                | `src/app.ts`                                                                  |
-| Authentification, sessions révocables, rôles                     | `src/security.ts`, `src/app.ts`                                               |
-| Mots de passe salés avec scrypt, tokens stockés hachés           | `src/security.ts`, `src/postgres.ts`                                          |
+| Modélisation métier et transitions explicites                    | `src/shared/domain.ts`                                                        |
+| Validation stricte et taille des requêtes limitée                | `src/server/app.ts`                                                           |
+| Authentification, sessions révocables, rôles                     | `src/server/security/crypto.ts`, `src/server/app.ts`                          |
+| Mots de passe salés avec scrypt, tokens stockés hachés           | `src/server/security/crypto.ts`, `src/server/persistence/postgres.ts`         |
 | Cookies HttpOnly/SameSite et protection CSRF des écritures       | routes de session et `writeAccess`                                            |
-| Prévention des injections SQL                                    | requêtes paramétrées dans `src/postgres.ts`                                   |
+| Prévention des injections SQL                                    | requêtes paramétrées dans `src/server/persistence/postgres.ts`                |
 | Incident et historique enregistrés atomiquement                  | transactions PostgreSQL                                                       |
 | Conflits concurrents explicites plutôt qu’écrasements silencieux | verrou de ligne et version, réponse HTTP 409                                  |
 | Migrations versionnées, checksum et verrou global                | `scripts/migrate.ts`                                                          |
@@ -43,19 +43,23 @@ Ouvrir http://localhost:3000, se connecter, créer un incident, changer son stat
 | Qualité automatisée                                              | tests API + PostgreSQL, TypeScript strict, ESLint, Prettier, CI               |
 | Conteneur avec droits réduits                                    | Docker multiétage, utilisateur non-root, système de fichiers en lecture seule |
 | Architecture et décisions documentées                            | `docs/architecture.md`, ADR et modèle de menace                               |
-| Déploiement AWS en code                                          | `infra/aws-runtime.json`, prérequis et limites dans `infra/README.md`         |
+| Déploiement AWS en code                                          | `infra/aws-runtime.yml`, prérequis et limites dans `infra/README.md`          |
 
 ## Développement sans conteneur applicatif
 
 ```sh
-docker compose up -d db
-cp .env.example .env
-npm ci
-make migrate
 make dev
 ```
 
-Les commandes `npm run migrate` et `npm run user:create` nécessitent que DATABASE_URL soit dans l’environnement. Elles ne chargent pas implicitement `.env`. `make migrate` et `make dev` le chargent explicitement.
+Cette commande installe les dépendances, crée `.env` si nécessaire, démarre PostgreSQL, applique les migrations et crée un administrateur local. L’API et le bundle React sont reconstruits automatiquement pendant le développement.
+
+Ouvrir http://127.0.0.1:3000 et se connecter avec `admin@example.test` / `local-development-only`. Pour choisir les identifiants, modifier `DEV_EMAIL` et `DEV_PASSWORD` dans `.env`. Le mot de passe doit avoir 12 à 128 caractères. À chaque démarrage, le mot de passe de cet utilisateur local est synchronisé avec `DEV_PASSWORD` ; son rôle existant est conservé. Après un changement de mot de passe, exécuter `make dev-user` ou relancer `make dev`.
+
+Le mode `NODE_ENV=development` désactive les cookies Secure, HSTS et la directive CSP `upgrade-insecure-requests` pour permettre HTTP local. Ces exceptions ne s’appliquent pas au mode production. Aucun compte de démonstration n’est créé par le déploiement de production.
+
+`make migrate` et `make dev-user` chargent `.env`. Les commandes `npm run migrate` et `npm run user:create` nécessitent DATABASE_URL dans l’environnement.
+
+TypeScript reste en version 6.0.x : la dernière version de `typescript-eslint` ne prend pas encore en charge TypeScript 7.
 
 ## Vérifications
 
@@ -67,7 +71,9 @@ TEST_DATABASE_URL=postgres://incident:local-development-only@localhost:5432/inci
 npm audit --omit=dev --audit-level=high
 ```
 
-Utiliser une base dédiée pour les tests d’intégration. Ils créent leurs propres utilisateurs/incidents et les nettoient ; ils ne réinitialisent pas les tables. La CI fournit une base PostgreSQL éphémère et applique deux fois les migrations pour vérifier leur réexécution.
+`make test-integration` démarre une base PostgreSQL dédiée sur le port 5433, applique les migrations et lance les tests, sans configuration préalable. Les données de cette base sont temporaires. Pour arrêter le conteneur de test : `docker compose --profile test stop db-test`.
+
+Pour `npm run test:integration`, fournir `TEST_DATABASE_URL` vers une base dédiée et déjà migrée. Ils créent leurs propres utilisateurs/incidents et les nettoient ; ils ne réinitialisent pas les tables. La CI fournit une base PostgreSQL éphémère et applique deux fois les migrations pour vérifier leur réexécution.
 
 ## API
 

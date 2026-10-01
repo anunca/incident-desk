@@ -7,7 +7,7 @@ Prérequis existants : VPC, deux sous-réseaux publics et deux privés sur diff�
 Créer l’image et la publier dans ECR avec les outils AWS authentifiés de l’opérateur. Exécuter les migrations avec une tâche ponctuelle disposant du réseau DB et d’une image de migration dédiée (target build avec scripts/migrations ajoutés) AVANT le service. Créer l’utilisateur initial par canal sécurisé, sans mot de passe dans les logs. Le template runtime ne fait pas ces étapes, ne crée pas RDS et n’active pas de sauvegardes.
 
 ```sh
-aws cloudformation validate-template --template-body file://infra/aws-runtime.json
+aws cloudformation validate-template --template-body file://infra/aws-runtime.yml
 ```
 
 Examiner un change set avant déploiement. Utiliser ImageUri avec un digest, pas `latest`. La configuration peut entraîner des frais permanents ALB/Fargate/NAT/RDS. Elle n’est pas lancée automatiquement.

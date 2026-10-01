@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
-import { hashPassword } from "../src/security.js";
+import { hashPassword } from "../src/server/security/crypto.js";
 // Password arrives on stdin, never as a command argument or in logs.
 let password = "";
 for await (const chunk of process.stdin) password += chunk;

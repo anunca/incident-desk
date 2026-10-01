@@ -1,5 +1,5 @@
 import { Pool } from "pg";
-import { PostgresStore } from "./postgres.js";
+import { PostgresStore } from "./persistence/postgres.js";
 import { buildApp } from "./app.js";
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL is required");
@@ -18,7 +18,10 @@ pool.on("error", () => {
 });
 const app = await buildApp(new PostgresStore(pool), {
   logger: true,
-  secureCookies: process.env.COOKIE_SECURE === "true",
+  development: process.env.NODE_ENV === "development",
+  secureCookies:
+    process.env.NODE_ENV !== "development" &&
+    process.env.COOKIE_SECURE === "true",
 });
 app.addHook("onClose", async () => {
   await pool.end();

@@ -4,12 +4,12 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=24 <25"
+    "node": ">=26 <27"
   },
   "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "build": "tsc",
-    "start": "node dist/server.js",
+    "dev": "concurrently -k \"npm:dev:server\" \"npm:dev:client\"",
+    "build": "tsc && npm run build:client",
+    "start": "node dist/server/main.js",
     "migrate": "tsx scripts/migrate.ts",
     "user:create": "tsx scripts/create-user.ts",
     "test": "vitest run --exclude tests/postgres.test.ts",
@@ -18,25 +18,38 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "npm run typecheck && npm run lint && npm run format:check && npm test"
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm test",
+    "dev:server": "node --env-file-if-exists=.env --import tsx --watch src/server/main.ts",
+    "dev:client": "node scripts/build-client.mjs --watch",
+    "build:client": "node scripts/build-client.mjs"
   },
   "dependencies": {
-    "@fastify/helmet": "^13.0.0",
+    "@fastify/helmet": "^13.1.1",
     "@fastify/rate-limit": "^11.2.0",
     "@fastify/static": "^10.1.5",
     "@prometheus-io/client": "^0.16.1",
-    "fastify": "^5.0.0",
-    "pg": "^8.0.0"
+    "fastify": "^5.12.5",
+    "pg": "^8.23.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^26.6.3",
-    "@types/pg": "^8.0.0",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "concurrently": "^10.0.5",
+    "esbuild": "^0.28.2",
     "eslint": "^10.11.0",
-    "prettier": "^3.0.0",
-    "tsx": "^4.0.0",
-    "typescript": "^5.0.0",
-    "typescript-eslint": "^8.0.0",
-    "vitest": "^5.0.2"
+    "prettier": "^3.9.9",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.0",
+    "typescript-eslint": "^8.71.0",
+    "vitest": "^5.0.3"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "fsevents@2.3.3": true
   }
 }

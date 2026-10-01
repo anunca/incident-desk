@@ -9,7 +9,7 @@ import {
   type Status,
   type Event,
   type User,
-} from "./domain.js";
+} from "../../shared/domain.js";
 const projection =
   'id,title,description,severity,status,version,created_at AS "createdAt",updated_at AS "updatedAt"';
 export class PostgresStore implements Store {

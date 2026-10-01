@@ -12,6 +12,20 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+  db-test:
+    image: postgres:17-bookworm
+    profiles: ["test"]
+    environment:
+      POSTGRES_USER: incident
+      POSTGRES_PASSWORD: local-test-only
+      POSTGRES_DB: incidents_test
+    ports: ["127.0.0.1:5433:5432"]
+    tmpfs: ["/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U incident -d incidents_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
   migrate:
     build:
       context: .

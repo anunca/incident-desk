@@ -8,7 +8,7 @@ import {
   type Event,
   type User,
   type Status,
-} from "../src/domain.js";
+} from "../src/shared/domain.js";
 export class MemoryStore implements Store {
   users: User[] = [];
   sessions = new Map<string, { actor: Actor; expires: Date }>();

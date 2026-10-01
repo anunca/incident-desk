@@ -1,7 +1,7 @@
 import { beforeAll, afterAll, it, expect } from "vitest";
 import { Pool } from "pg";
 import { randomUUID } from "node:crypto";
-import { PostgresStore } from "../src/postgres.js";
+import { PostgresStore } from "../src/server/persistence/postgres.js";
 // TEST_DATABASE_URL must reference a dedicated, already-migrated test database.
 const url = process.env.TEST_DATABASE_URL;
 if (!url)
