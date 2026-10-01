@@ -26,7 +26,7 @@ jobs:
       TEST_DATABASE_URL: postgres://incident:ci-only-password@localhost:5432/incidents_test
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
           cache: npm
