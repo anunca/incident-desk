@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Incident Desk</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header>
+      <span class="brand">Incident Desk</span><span>Suivi opérationnel</span
+      ><button id="logout" hidden>Déconnexion</button>
+    </header>
+    <main>
+      <h1>Gardez le contrôle des incidents.</h1>
+      <p>Déclarez, suivez et résolvez les incidents de vos services.</p>
+      <p id="message" role="status" aria-live="polite"></p>
+      <form id="login">
+        <h2>Connexion</h2>
+        <label
+          >E-mail<input
+            name="email"
+            type="email"
+            autocomplete="username"
+            required /></label
+        ><label
+          >Mot de passe<input
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            required /></label
+        ><button>Se connecter</button>
+      </form>
+      <section id="workspace" hidden>
+        <form id="create">
+          <h2>Nouvel incident</h2>
+          <label>Titre<input name="title" maxlength="160" required /></label
+          ><label
+            >Description<textarea
+              name="description"
+              maxlength="4000"
+            ></textarea></label
+          ><label
+            >Sévérité<select name="severity">
+              <option value="low">Faible</option>
+              <option value="medium">Moyenne</option>
+              <option value="high">Haute</option>
+              <option value="critical">Critique</option>
+            </select></label
+          ><button>Créer l’incident</button>
+        </form>
+        <section>
+          <h2>Incidents récents</h2>
+          <button id="refresh">Actualiser</button>
+          <div id="incidents"></div>
+          <button id="more" hidden>Voir la suite</button>
+        </section>
+      </section>
+    </main>
+  </body>
+</html>

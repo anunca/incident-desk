@@ -1,0 +1,100 @@
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: #f4f7fa;
+  color: #162536;
+  font:
+    16px/1.6 system-ui,
+    sans-serif;
+}
+header {
+  background: #102a43;
+  color: white;
+  padding: 20px 5%;
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+.brand {
+  font-weight: 800;
+  font-size: 23px;
+}
+header button {
+  margin-left: auto;
+}
+main {
+  max-width: 1050px;
+  margin: 48px auto;
+  padding: 0 24px;
+}
+h1 {
+  font-size: clamp(28px, 4vw, 42px);
+  line-height: 1.2;
+}
+form,
+article {
+  background: white;
+  border: 1px solid #d5dfe8;
+  border-radius: 12px;
+  padding: 24px;
+  margin: 20px 0;
+}
+label {
+  display: block;
+  margin: 12px 0;
+}
+input,
+textarea,
+select {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #879aac;
+  border-radius: 6px;
+  font: inherit;
+}
+button {
+  background: #165d9b;
+  color: white;
+  border: 0;
+  border-radius: 6px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font: inherit;
+}
+button:disabled {
+  opacity: 0.5;
+}
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid #d88700;
+  outline-offset: 3px;
+}
+.meta {
+  color: #52677a;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+#message {
+  color: #923500;
+  min-height: 24px;
+}
+#login {
+  max-width: 440px;
+}
+pre {
+  white-space: pre-wrap;
+  font: inherit;
+}
+details {
+  margin-top: 16px;
+}
+[hidden] {
+  display: none !important;
+}
