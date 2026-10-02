@@ -15,6 +15,9 @@ export async function registerSessionRoutes(
   options: { secureCookies?: boolean },
 ) {
   const { authenticate, bearer, sessionToken } = auth;
+  app.get("/api/session", { preHandler: authenticate }, async (req) => ({
+    role: auth.actors.get(req)!.role,
+  }));
   const dummy = await hashPassword(newToken());
   app.post<{ Body: { email: string; password: string } }>(
     "/api/session",

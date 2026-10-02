@@ -93,3 +93,12 @@ Ce projet est un exercice de portfolio : il ne revendique aucun résultat client
 ## Limites assumées
 
 Pas de multitenant : tous les utilisateurs connectés voient les mêmes incidents. Le rôle admin donne accès aux métriques ; la gestion des utilisateurs est une CLI. Pas de SSO/MFA, réinitialisation de mot de passe, notifications, pièces jointes ni idempotence des créations. La limitation de débit est locale à chaque processus. L’audit applicatif n’est pas inviolable face à un administrateur PostgreSQL. Docker et AWS doivent être validés dans leurs environnements cibles avant exploitation. Voir `SECURITY.md` et `docs/verification.md`.
+
+## Régressions navigateur
+
+```sh
+npx playwright install chromium
+npm run test:browser
+```
+
+Les tests démarrent une application locale sur le port 3100 avec un stockage mémoire et des comptes exclusivement de test. Ils vérifient le chargement HTTP local, la restauration du cookie après rechargement, l’expiration, le rôle lecteur et l’actualisation de l’historique après mutation. Ils complètent les tests PostgreSQL sans les remplacer. Docker Compose active explicitement le mode development pour son accès localhost en HTTP ; l’image seule garde ses paramètres de production et la politique HTTPS.

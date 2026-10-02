@@ -12,7 +12,7 @@
     "start": "node dist/server/main.js",
     "migrate": "tsx scripts/migrate.ts",
     "user:create": "tsx scripts/create-user.ts",
-    "test": "vitest run --exclude tests/postgres.test.ts",
+    "test": "vitest run --exclude tests/postgres.test.ts --exclude 'tests/browser/**'",
     "test:integration": "vitest run tests/postgres.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.check.json",
     "lint": "eslint .",
@@ -21,7 +21,8 @@
     "check": "npm run typecheck && npm run lint && npm run format:check && npm test",
     "dev:server": "node --env-file-if-exists=.env --import tsx --watch src/server/main.ts",
     "dev:client": "node scripts/build-client.mjs --watch",
-    "build:client": "node scripts/build-client.mjs"
+    "build:client": "node scripts/build-client.mjs",
+    "test:browser": "playwright test"
   },
   "dependencies": {
     "@fastify/helmet": "^13.1.1",
@@ -35,6 +36,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
     "@types/node": "^26.6.3",
     "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",

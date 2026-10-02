@@ -5,6 +5,7 @@ Toutes les routes `/api/incidents` nécessitent une session valide. Une session 
 | Méthode et route                       | Entrée / résultat                              | Autorisation           |
 | -------------------------------------- | ---------------------------------------------- | ---------------------- |
 | POST `/api/session`                    | `{email,password}` → `{token,role}` et cookie  | Publique, débit limité |
+| GET `/api/session`                     | `{role}` de la session courante, sans token    | Connecté               |
 | DELETE `/api/session`                  | Révocation, 204                                | Connecté               |
 | GET `/api/incidents?limit=20&offset=0` | `{items:[...]}`                                | Connecté               |
 | POST `/api/incidents`                  | `{title,description,severity}` → incident, 201 | operator/admin         |

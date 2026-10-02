@@ -4,3 +4,6 @@ coverage
 package-lock.json
 
 public/assets
+
+playwright-report/
+test-results/

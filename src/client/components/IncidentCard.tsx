@@ -7,14 +7,14 @@ interface IncidentCardProps {
   canEdit: boolean;
   busy: boolean;
   onChangeStatus: (incident: Incident, status: Status) => Promise<boolean>;
-  onMessage: (message: string) => void;
+  onError: (error: unknown) => void;
 }
 export function IncidentCard({
   incident,
   canEdit,
   busy,
   onChangeStatus,
-  onMessage,
+  onError,
 }: IncidentCardProps) {
   return (
     <article>
@@ -37,7 +37,11 @@ export function IncidentCard({
           ))}
         </div>
       )}
-      <IncidentHistory id={incident.id} report={onMessage} />
+      <IncidentHistory
+        id={incident.id}
+        version={incident.version}
+        report={onError}
+      />
     </article>
   );
 }
