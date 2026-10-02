@@ -14,7 +14,7 @@ beforeEach(async () => {
     passwordHash: await hashPassword("correct-password-123"),
     role: "admin",
   });
-  app = await buildApp(store);
+  app = await buildApp({ incidents: store, sessions: store, health: store });
   const login = await app.inject({
     method: "POST",
     url: "/api/session",
@@ -51,6 +51,37 @@ describe("API security and lifecycle", () => {
     expect(
       (await app.inject({ url: "/api/session", headers: auth() })).statusCode,
     ).toBe(401);
+  });
+  it("documents request and response schemas without exposing documentation anonymously", async () => {
+    expect((await app.inject("/api/openapi.json")).statusCode).toBe(401);
+    const response = await app.inject({
+      url: "/api/openapi.json",
+      headers: auth(),
+    });
+    expect(response.statusCode).toBe(200);
+    const spec = response.json();
+    expect(spec.openapi).toMatch(/^3/);
+    expect(spec.paths["/api/incidents"].post.requestBody).toBeDefined();
+    expect(
+      spec.paths["/api/incidents"].post.responses["201"].content[
+        "application/json"
+      ].schema.properties.version,
+    ).toBeDefined();
+  });
+  it("maps domain timestamps to wire strings and excludes internal fields", async () => {
+    const result = await create();
+    const id = result.json().id;
+    const item = store.items.find((i) => i.id === id)!;
+    item.createdAt = new Date("2026-01-01T00:00:00Z");
+    Object.assign(item, { internalSecret: "must-not-leak" });
+    const response = await app.inject({
+      url: `/api/incidents/${id}`,
+      headers: auth(),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().createdAt).toBe("2026-01-01T00:00:00.000Z");
+    expect(response.body).not.toContain("internalSecret");
+    expect(response.body).not.toContain("must-not-leak");
   });
   it("rejects anonymous access", async () => {
     expect((await app.inject("/api/incidents")).statusCode).toBe(401);
@@ -181,7 +212,10 @@ describe("API security and lifecycle", () => {
     expect(production.headers["content-security-policy"]).toContain(
       "upgrade-insecure-requests",
     );
-    const local = await buildApp(store, { development: true });
+    const local = await buildApp(
+      { incidents: store, sessions: store, health: store },
+      { development: true },
+    );
     try {
       const response = await local.inject("/");
       expect(response.headers["strict-transport-security"]).toBeUndefined();

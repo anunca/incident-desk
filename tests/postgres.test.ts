@@ -1,13 +1,13 @@
 import { beforeAll, afterAll, it, expect } from "vitest";
 import { Pool } from "pg";
 import { randomUUID } from "node:crypto";
-import { PostgresStore } from "../src/server/persistence/postgres.js";
+import { PostgresIncidentRepository } from "../src/server/persistence/incidents.js";
 // TEST_DATABASE_URL must reference a dedicated, already-migrated test database.
 const url = process.env.TEST_DATABASE_URL;
 if (!url)
   throw new Error("TEST_DATABASE_URL is required for integration tests");
 const pool = new Pool({ connectionString: url });
-const store = new PostgresStore(pool);
+const store = new PostgresIncidentRepository(pool);
 const actor = { id: randomUUID(), role: "operator" as const };
 const ids: string[] = [];
 beforeAll(async () => {

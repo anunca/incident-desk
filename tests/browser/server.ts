@@ -11,7 +11,10 @@ for (const role of ["admin", "reader"] as const)
     role,
     passwordHash: await hashPassword("browser-tests-only-password"),
   });
-const app = await buildApp(store, { development: true });
+const app = await buildApp(
+  { incidents: store, sessions: store, health: store },
+  { development: true },
+);
 await app.listen({ host: "127.0.0.1", port: 3100 });
 for (const signal of ["SIGINT", "SIGTERM"])
   process.on(signal, () => {

@@ -1,5 +1,5 @@
 import type { FormEvent } from "react";
-import type { NewIncident } from "../api.js";
+import type { NewIncident } from "../../../api.js";
 
 interface IncidentFormProps {
   busy: boolean;

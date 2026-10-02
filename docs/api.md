@@ -12,6 +12,7 @@ Toutes les routes `/api/incidents` nécessitent une session valide. Une session 
 | GET `/api/incidents/:id`               | Incident                                       | Connecté               |
 | PATCH `/api/incidents/:id/status`      | `{status,version}` → version suivante          | operator/admin         |
 | GET `/api/incidents/:id/events`        | `{items:[...]}`                                | Connecté               |
+| GET `/api/openapi.json`                | Document OpenAPI généré                        | Connecté               |
 | GET `/metrics`                         | Format Prometheus                              | admin                  |
 | GET `/health/live`                     | Processus vivant                               | Publique               |
 | GET `/health/ready`                    | DB accessible, sinon 503                       | Publique               |
@@ -38,3 +39,5 @@ Exemple de changement d’état :
 ```json
 { "status": "investigating", "version": 1 }
 ```
+
+Les schémas de `src/shared/contracts.ts` définissent les entrées et les DTO publics. Les types TypeScript en sont inférés ; Fastify utilise ces schémas pour valider les requêtes, sérialiser les réponses et générer OpenAPI. Les dates sont des chaînes ISO. Les types métier et les interfaces de stockage restent internes au serveur.

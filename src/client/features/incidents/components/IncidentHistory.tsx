@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import type { Event } from "../../shared/domain.js";
-import { api } from "../api.js";
+import type { Event } from "../../../../shared/contracts.js";
+import { api } from "../../../api.js";
 import { statusLabels } from "../incident-status.js";
 
 export function IncidentHistory({

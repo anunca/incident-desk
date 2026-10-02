@@ -11,8 +11,8 @@ export interface Incident {
   severity: "low" | "medium" | "high" | "critical";
   status: Status;
   version: number;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: string | Date;
+  updatedAt: string | Date;
 }
 export interface Event {
   id: string;
@@ -21,7 +21,7 @@ export interface Event {
   action: string;
   fromStatus: Status | null;
   toStatus: Status;
-  at: string;
+  at: string | Date;
 }
 export interface User {
   id: string;
@@ -31,7 +31,7 @@ export interface User {
 }
 export class DomainError extends Error {
   constructor(
-    public status: number,
+    public code: "unauthenticated" | "forbidden" | "not_found" | "conflict",
     message: string,
   ) {
     super(message);
@@ -44,25 +44,5 @@ export function assertTransition(from: Status, to: Status) {
     resolved: ["open"],
   };
   if (!allowed[from].includes(to))
-    throw new DomainError(409, "Invalid status transition");
-}
-export interface Store {
-  ready(): Promise<void>;
-  user(email: string): Promise<User | undefined>;
-  session(hash: string): Promise<Actor | undefined>;
-  saveSession(hash: string, actor: Actor, expires: Date): Promise<void>;
-  deleteSession(hash: string): Promise<void>;
-  list(limit: number, offset: number): Promise<Incident[]>;
-  get(id: string): Promise<Incident | undefined>;
-  create(
-    input: Pick<Incident, "title" | "description" | "severity">,
-    actor: Actor,
-  ): Promise<Incident>;
-  transition(
-    id: string,
-    status: Status,
-    version: number,
-    actor: Actor,
-  ): Promise<Incident>;
-  events(id: string): Promise<Event[]>;
+    throw new DomainError("conflict", "Invalid status transition");
 }

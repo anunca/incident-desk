@@ -1,15 +1,21 @@
+import type {
+  IncidentRepository,
+  SessionRepository,
+  HealthProbe,
+} from "../src/server/application/ports.js";
 import { randomUUID } from "node:crypto";
 import {
   assertTransition,
   DomainError,
-  type Store,
   type Actor,
   type Incident,
   type Event,
   type User,
   type Status,
-} from "../src/shared/domain.js";
-export class MemoryStore implements Store {
+} from "../src/server/domain/models.js";
+export class MemoryStore
+  implements IncidentRepository, SessionRepository, HealthProbe
+{
   users: User[] = [];
   sessions = new Map<string, { actor: Actor; expires: Date }>();
   items: Incident[] = [];
@@ -64,9 +70,12 @@ export class MemoryStore implements Store {
   }
   async transition(id: string, status: Status, version: number, actor: Actor) {
     const item = await this.get(id);
-    if (!item) throw new DomainError(404, "Incident not found");
+    if (!item) throw new DomainError("not_found", "Incident not found");
     if (item.version !== version)
-      throw new DomainError(409, "Incident changed; reload before retrying");
+      throw new DomainError(
+        "conflict",
+        "Incident changed; reload before retrying",
+      );
     assertTransition(item.status, status);
     const fromStatus = item.status;
     item.status = status;

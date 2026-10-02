@@ -1,8 +1,9 @@
+import type { SessionRepository } from "../application/ports.js";
 import type { FastifyRequest } from "fastify";
-import { DomainError, type Store, type Actor } from "../../shared/domain.js";
+import { DomainError, type Actor } from "../domain/models.js";
 import { tokenHash } from "./crypto.js";
 
-export function createAuthentication(store: Store) {
+export function createAuthentication(store: SessionRepository) {
   const actors = new WeakMap<FastifyRequest, Actor>();
   const bearer = (req: FastifyRequest) => {
     const auth = req.headers.authorization;
@@ -18,15 +19,14 @@ export function createAuthentication(store: Store) {
   const authenticate = async (req: FastifyRequest) => {
     const token = sessionToken(req);
     const actor = token ? await store.session(tokenHash(token)) : undefined;
-    if (!actor) throw new DomainError(401, "Authentication required");
+    if (!actor)
+      throw new DomainError("unauthenticated", "Authentication required");
     actors.set(req, actor);
   };
   const writeAccess = async (req: FastifyRequest) => {
     await authenticate(req);
-    if (actors.get(req)!.role === "reader")
-      throw new DomainError(403, "Write access required");
     if (!bearer(req) && req.headers["x-requested-with"] !== "incident-desk")
-      throw new DomainError(403, "Missing CSRF header");
+      throw new DomainError("forbidden", "Missing CSRF header");
   };
   return { actors, bearer, sessionToken, authenticate, writeAccess };
 }

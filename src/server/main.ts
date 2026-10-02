@@ -1,5 +1,7 @@
 import { Pool } from "pg";
-import { PostgresStore } from "./persistence/postgres.js";
+import { PostgresIncidentRepository } from "./persistence/incidents.js";
+import { PostgresSessionRepository } from "./persistence/sessions.js";
+import { PostgresHealthProbe } from "./persistence/health.js";
 import { buildApp } from "./app.js";
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL is required");
@@ -16,13 +18,20 @@ const pool = new Pool({
 pool.on("error", () => {
   console.error("Unexpected database pool error");
 });
-const app = await buildApp(new PostgresStore(pool), {
-  logger: true,
-  development: process.env.NODE_ENV === "development",
-  secureCookies:
-    process.env.NODE_ENV !== "development" &&
-    process.env.COOKIE_SECURE === "true",
-});
+const app = await buildApp(
+  {
+    incidents: new PostgresIncidentRepository(pool),
+    sessions: new PostgresSessionRepository(pool),
+    health: new PostgresHealthProbe(pool),
+  },
+  {
+    logger: true,
+    development: process.env.NODE_ENV === "development",
+    secureCookies:
+      process.env.NODE_ENV !== "development" &&
+      process.env.COOKIE_SECURE === "true",
+  },
+);
 app.addHook("onClose", async () => {
   await pool.end();
 });
