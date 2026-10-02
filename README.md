@@ -2,6 +2,10 @@
 
 Projet de démonstration professionnel : suivi d’incidents avec API TypeScript, PostgreSQL et interface web React. Il montre des choix explicables et testables, sans prétendre remplacer un outil de gestion d’incidents de production.
 
+## Architecture
+
+Le [guide d’architecture](docs/architecture.md) décrit les modules, les flux HTTP et transactionnels, le modèle de données, la sécurité, le déploiement et les évolutions proposées.
+
 ## Démonstration en cinq minutes
 
 Prérequis : Node.js 26, npm, Docker avec Compose v2. Sur macOS, Docker Desktop ou un moteur compatible.
