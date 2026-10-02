@@ -31,23 +31,25 @@ Ouvrir http://localhost:3000, se connecter, créer un incident, changer son stat
 
 ## Ce que le projet prouve
 
-| Pratique                                                         | Preuve dans le dépôt                                                          |
-| ---------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Modélisation métier et transitions explicites                    | `src/shared/domain.ts`                                                        |
-| Validation stricte et taille des requêtes limitée                | `src/server/app.ts`                                                           |
-| Authentification, sessions révocables, rôles                     | `src/server/security/crypto.ts`, `src/server/app.ts`                          |
-| Mots de passe salés avec scrypt, tokens stockés hachés           | `src/server/security/crypto.ts`, `src/server/persistence/postgres.ts`         |
-| Cookies HttpOnly/SameSite et protection CSRF des écritures       | routes de session et `writeAccess`                                            |
-| Prévention des injections SQL                                    | requêtes paramétrées dans `src/server/persistence/postgres.ts`                |
-| Incident et historique enregistrés atomiquement                  | transactions PostgreSQL                                                       |
-| Conflits concurrents explicites plutôt qu’écrasements silencieux | verrou de ligne et version, réponse HTTP 409                                  |
-| Migrations versionnées, checksum et verrou global                | `scripts/migrate.ts`                                                          |
-| Observabilité sans labels à cardinalité incontrôlée              | logs structurés, identifiant de requête, métriques par modèle de route        |
-| Exploitation                                                     | sondes live/ready, délais DB, arrêt SIGTERM, `docs/runbook.md`                |
-| Qualité automatisée                                              | tests API + PostgreSQL, TypeScript strict, ESLint, Prettier, CI               |
-| Conteneur avec droits réduits                                    | Docker multiétage, utilisateur non-root, système de fichiers en lecture seule |
-| Architecture et décisions documentées                            | `docs/architecture.md`, ADR et modèle de menace                               |
-| Déploiement AWS en code                                          | `infra/aws-runtime.yml`, prérequis et limites dans `infra/README.md`          |
+| Pratique                                                         | Preuve dans le dépôt                                                                  |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Modélisation métier et transitions explicites                    | `src/server/domain/models.ts`                                                         |
+| Validation stricte et taille des requêtes limitée                | `src/server/app.ts`                                                                   |
+| Authentification, sessions révocables, rôles                     | `src/server/security/crypto.ts`, `src/server/app.ts`                                  |
+| Mots de passe salés avec scrypt, tokens stockés hachés           | `src/server/security/crypto.ts`, `src/server/persistence/`                            |
+| Cookies HttpOnly/SameSite et protection CSRF des écritures       | routes de session et `writeAccess`                                                    |
+| Prévention des injections SQL                                    | requêtes paramétrées dans `src/server/persistence/`                                   |
+| Incident et historique enregistrés atomiquement                  | transactions PostgreSQL                                                               |
+| Conflits concurrents explicites plutôt qu’écrasements silencieux | verrou de ligne et version, réponse HTTP 409                                          |
+| Migrations versionnées, checksum et verrou global                | `scripts/migrate.ts`                                                                  |
+| Observabilité sans labels à cardinalité incontrôlée              | logs structurés, identifiant de requête, métriques par modèle de route                |
+| Exploitation                                                     | sondes live/ready, délais DB, arrêt SIGTERM, `docs/runbook.md`                        |
+| Cas d’usage indépendants du transport                            | `src/server/application/`, tests métier et ports atomiques                            |
+| Contrats HTTP uniques                                            | TypeBox, types inférés et OpenAPI généré                                              |
+| Qualité automatisée                                              | tests métier + API + PostgreSQL + navigateur, TypeScript strict, ESLint, Prettier, CI |
+| Conteneur avec droits réduits                                    | Docker multiétage, utilisateur non-root, système de fichiers en lecture seule         |
+| Architecture et décisions documentées                            | `docs/architecture.md`, ADR et modèle de menace                                       |
+| Déploiement AWS en code                                          | `infra/aws-runtime.yml`, prérequis et limites dans `infra/README.md`                  |
 
 ## Développement sans conteneur applicatif
 

@@ -1,4 +1,4 @@
-import type { Status } from "../shared/domain.js";
+import type { Status } from "../../../shared/contracts.js";
 
 export const statusLabels: Record<Status, string> = {
   open: "Ouvert",

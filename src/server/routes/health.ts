@@ -1,11 +1,12 @@
+import type { HealthProbe } from "../application/ports.js";
 import type { FastifyInstance } from "fastify";
 import type { Registry } from "@prometheus-io/client";
-import { DomainError, type Store } from "../../shared/domain.js";
+import { DomainError } from "../domain/models.js";
 import type { Authentication } from "../security/authentication.js";
 
 export function registerHealthRoutes(
   app: FastifyInstance,
-  store: Store,
+  store: HealthProbe,
   auth: Authentication,
   registry: Registry,
 ) {
@@ -21,7 +22,7 @@ export function registerHealthRoutes(
   });
   app.get("/metrics", { preHandler: authenticate }, async (req, reply) => {
     if (actors.get(req)!.role !== "admin")
-      throw new DomainError(403, "Admin access required");
+      throw new DomainError("forbidden", "Admin access required");
     return reply.type(registry.contentType).send(await registry.metrics());
   });
 }

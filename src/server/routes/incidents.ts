@@ -1,127 +1,121 @@
 import type { FastifyInstance } from "fastify";
-import {
-  DomainError,
-  type Store,
-  type Incident,
-  type Status,
-} from "../../shared/domain.js";
+import type { IncidentUseCases } from "../application/incidents.js";
 import type { Authentication } from "../security/authentication.js";
-
+import {
+  CreateIncidentSchema,
+  ChangeStatusSchema,
+  IdParamsSchema,
+  ListQuerySchema,
+  IncidentSchema,
+  IncidentListSchema,
+  EventListSchema,
+  ErrorSchema,
+  type NewIncident,
+  type StatusChange,
+  type IdParams,
+  type ListQuery,
+} from "../../shared/contracts.js";
+import { incidentDto, eventDto } from "./mappers.js";
+const secured = [{ cookieAuth: [] }, { bearerAuth: [] }];
+const errors = {
+  400: ErrorSchema,
+  401: ErrorSchema,
+  403: ErrorSchema,
+  404: ErrorSchema,
+  409: ErrorSchema,
+  429: ErrorSchema,
+  500: ErrorSchema,
+};
 export function registerIncidentRoutes(
   app: FastifyInstance,
-  store: Store,
+  useCases: IncidentUseCases,
   auth: Authentication,
 ) {
   const { authenticate, writeAccess, actors } = auth;
-  app.get<{ Querystring: { limit?: number; offset?: number } }>(
+  app.get<{ Querystring: ListQuery }>(
     "/api/incidents",
     {
       preHandler: authenticate,
       schema: {
-        querystring: {
-          type: "object",
-          additionalProperties: false,
-          properties: {
-            limit: { type: "integer", minimum: 1, maximum: 100, default: 20 },
-            offset: {
-              type: "integer",
-              minimum: 0,
-              maximum: 100000,
-              default: 0,
-            },
-          },
-        },
+        tags: ["incidents"],
+        security: secured,
+        querystring: ListQuerySchema,
+        response: { 200: IncidentListSchema, ...errors },
       },
     },
     async (req) => ({
-      items: await store.list(req.query.limit ?? 20, req.query.offset ?? 0),
+      items: (
+        await useCases.list(req.query.limit ?? 20, req.query.offset ?? 0)
+      ).map(incidentDto),
     }),
   );
-  const idParams = {
-    type: "object",
-    required: ["id"],
-    properties: { id: { type: "string", format: "uuid" } },
-  };
-  app.get<{ Params: { id: string } }>(
+  app.get<{ Params: IdParams }>(
     "/api/incidents/:id",
-    { preHandler: authenticate, schema: { params: idParams } },
-    async (req) => {
-      const incident = await store.get(req.params.id);
-      if (!incident) throw new DomainError(404, "Incident not found");
-      return incident;
+    {
+      preHandler: authenticate,
+      schema: {
+        tags: ["incidents"],
+        security: secured,
+        params: IdParamsSchema,
+        response: { 200: IncidentSchema, ...errors },
+      },
     },
+    async (req) => incidentDto(await useCases.get(req.params.id)),
   );
-  app.get<{ Params: { id: string } }>(
+  app.get<{ Params: IdParams }>(
     "/api/incidents/:id/events",
-    { preHandler: authenticate, schema: { params: idParams } },
-    async (req) => {
-      if (!(await store.get(req.params.id)))
-        throw new DomainError(404, "Incident not found");
-      return { items: await store.events(req.params.id) };
+    {
+      preHandler: authenticate,
+      schema: {
+        tags: ["incidents"],
+        security: secured,
+        params: IdParamsSchema,
+        response: { 200: EventListSchema, ...errors },
+      },
     },
+    async (req) => ({
+      items: (await useCases.history(req.params.id)).map(eventDto),
+    }),
   );
-  app.post<{ Body: Pick<Incident, "title" | "description" | "severity"> }>(
+  app.post<{ Body: NewIncident }>(
     "/api/incidents",
     {
       preHandler: writeAccess,
       schema: {
-        body: {
-          type: "object",
-          additionalProperties: false,
-          required: ["title", "description", "severity"],
-          properties: {
-            title: {
-              type: "string",
-              minLength: 1,
-              maxLength: 160,
-              pattern: "\\S",
-            },
-            description: { type: "string", maxLength: 4000 },
-            severity: {
-              type: "string",
-              enum: ["low", "medium", "high", "critical"],
-            },
-          },
-        },
+        tags: ["incidents"],
+        security: secured,
+        body: CreateIncidentSchema,
+        response: { 201: IncidentSchema, ...errors },
       },
     },
     async (req, reply) => {
-      const item = await store.create(req.body, actors.get(req)!);
+      const item = await useCases.create(req.body, actors.get(req)!);
       return reply
         .code(201)
         .header("Location", `/api/incidents/${item.id}`)
-        .send(item);
+        .send(incidentDto(item));
     },
   );
-  app.patch<{
-    Params: { id: string };
-    Body: { status: Status; version: number };
-  }>(
+  app.patch<{ Params: IdParams; Body: StatusChange }>(
     "/api/incidents/:id/status",
     {
       preHandler: writeAccess,
       schema: {
-        params: idParams,
-        body: {
-          type: "object",
-          additionalProperties: false,
-          required: ["status", "version"],
-          properties: {
-            status: {
-              type: "string",
-              enum: ["open", "investigating", "resolved"],
-            },
-            version: { type: "integer", minimum: 1 },
-          },
-        },
+        tags: ["incidents"],
+        security: secured,
+        params: IdParamsSchema,
+        body: ChangeStatusSchema,
+        response: { 200: IncidentSchema, ...errors },
       },
     },
     async (req) =>
-      store.transition(
-        req.params.id,
-        req.body.status,
-        req.body.version,
-        actors.get(req)!,
+      incidentDto(
+        await useCases.changeStatus(
+          req.params.id,
+          req.body.status,
+          req.body.version,
+          actors.get(req)!,
+        ),
       ),
   );
 }

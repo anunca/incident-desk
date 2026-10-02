@@ -1,12 +1,19 @@
 import type { FastifyInstance } from "fastify";
-import { DomainError } from "../shared/domain.js";
+import { DomainError } from "./domain/models.js";
 
 export function registerErrorHandler(app: FastifyInstance) {
   app.setErrorHandler((error, req, reply) => {
     const e = error as Error & { validation?: unknown; statusCode?: number };
     const status =
       e instanceof DomainError
-        ? e.status
+        ? (
+            {
+              unauthenticated: 401,
+              forbidden: 403,
+              not_found: 404,
+              conflict: 409,
+            } as const
+          )[e.code]
         : e.validation
           ? 400
           : e.statusCode && e.statusCode < 500

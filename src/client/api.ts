@@ -1,10 +1,7 @@
-import type { Incident, Event, Role, Status } from "../shared/domain.js";
+import type { Incident, Event, Role, Status } from "../shared/contracts.js";
 
-export interface Credentials {
-  email: string;
-  password: string;
-}
-export type NewIncident = Pick<Incident, "title" | "description" | "severity">;
+export type { Credentials, NewIncident } from "../shared/contracts.js";
+import type { Credentials, NewIncident } from "../shared/contracts.js";
 const PAGE_SIZE = 20;
 
 export class ApiError extends Error {

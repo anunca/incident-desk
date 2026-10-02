@@ -1,6 +1,6 @@
 # Architecture d’Incident Desk
 
-Ce guide décrit le code présent sur `main` et les choix qui le structurent. Les évolutions proposées figurent dans une section séparée : elles ne sont pas présentées comme déjà implémentées. Les correctifs de session, d’historique et de Docker local sont suivis dans la [PR #9](https://github.com/anunca/incident-desk/pull/9), indépendante de cette documentation.
+Ce guide décrit les frontières du code, les flux et les invariants à préserver lors des évolutions.
 
 ## 1. Périmètre et objectifs
 
@@ -23,65 +23,74 @@ L’application est un **monolithe modulaire** : un serveur Fastify expose l’A
 ```mermaid
 flowchart TD
     C["React ou client API"] --> H["Fastify : routes et contrôles"]
-    H --> D["Domaine : types et transitions"]
-    H --> S["Store : accès aux données"]
-    S --> D
-    S --> P["PostgreSQL : données et transactions"]
+    H --> A["Cas d’usage : orchestration et autorisation"]
+    A --> S["Ports : opérations atomiques"]
+    S --> P["Adaptateurs PostgreSQL"]
+    P --> D["Domaine : transitions et erreurs"]
 ```
 
-Les flèches représentent les interactions et dépendances principales. Les règles de transition sont appelées par l’adaptateur PostgreSQL ; il n’existe pas encore de couche de cas d’usage indépendante.
+Les flèches représentent le flux d’exécution. Les cas d’usage dépendent des ports ; les adaptateurs PostgreSQL les implémentent. Le contrôle de transition reste exécuté dans la transaction, après acquisition du verrou.
 
 React n’accède jamais à PostgreSQL. Les contrôles côté interface servent à guider l’utilisateur ; le serveur reste responsable de la validation et de l’autorisation.
 
 ## 3. Responsabilités et fichiers
 
-| Partie             | Responsabilité actuelle                                      | Point d’entrée                                                                 |
-| ------------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------ |
-| Client             | Formulaires, listes, historique et état de l’interface       | [`src/client/App.tsx`](../src/client/App.tsx)                                  |
-| Client HTTP        | Appels JSON typés vers l’API                                 | [`src/client/api.ts`](../src/client/api.ts)                                    |
-| Assemblage serveur | Plugins, routes, gestion d’erreurs et fichiers statiques     | [`src/server/app.ts`](../src/server/app.ts)                                    |
-| Démarrage          | Configuration, pool DB, écoute et arrêt du processus         | [`src/server/main.ts`](../src/server/main.ts)                                  |
-| Routes             | Schémas HTTP, contrôles d’accès, réponses et appels au Store | [`src/server/routes/`](../src/server/routes/)                                  |
-| Sécurité           | Sessions, rôles, mots de passe, CSRF et headers              | [`src/server/security/`](../src/server/security/)                              |
-| Domaine partagé    | Types, contrat Store, erreurs et transitions autorisées      | [`src/shared/domain.ts`](../src/shared/domain.ts)                              |
-| Persistance        | SQL paramétré, verrous et transactions                       | [`src/server/persistence/postgres.ts`](../src/server/persistence/postgres.ts)  |
-| Observabilité      | Compteurs, latence et labels par modèle de route             | [`src/server/observability.ts`](../src/server/observability.ts)                |
-| Migrations         | Schéma versionné et contrôle des migrations appliquées       | [`scripts/migrate.ts`](../scripts/migrate.ts), [`migrations/`](../migrations/) |
+| Partie        | Responsabilité                                                      | Point d’entrée                               |
+| ------------- | ------------------------------------------------------------------- | -------------------------------------------- |
+| Présentation  | Formulaires, liste et historique par fonctionnalité                 | `src/client/features/`, `src/client/App.tsx` |
+| État client   | Restauration/expiration, pagination et actualisation après écriture | `src/client/use-workspace.ts`                |
+| Client HTTP   | Appels JSON et erreurs HTTP typées                                  | `src/client/api.ts`                          |
+| Contrat HTTP  | Schémas TypeBox et types DTO inférés                                | `src/shared/contracts.ts`                    |
+| Assemblage    | Construction des cas d’usage, injection des ports et plugins        | `src/server/app.ts`, `src/server/main.ts`    |
+| Transport     | Validation, authentification, CSRF, conversion des DTO et erreurs   | `src/server/routes/`, `src/server/errors.ts` |
+| Application   | Autorisation des écritures et orchestration des incidents           | `src/server/application/incidents.ts`        |
+| Ports         | Contrats incidents, sessions et disponibilité                       | `src/server/application/ports.ts`            |
+| Domaine       | Modèle, transitions et erreurs indépendantes de HTTP                | `src/server/domain/models.ts`                |
+| Persistance   | SQL, sessions, verrous et transactions                              | `src/server/persistence/`                    |
+| Observabilité | Compteurs et latence par modèle de route                            | `src/server/observability.ts`                |
+| Migrations    | Schéma versionné et checksum                                        | `scripts/migrate.ts`, `migrations/`          |
 
-`main.ts` construit le pool et injecte `PostgresStore` dans `buildApp`. Les tests HTTP injectent `MemoryStore` à la place. Le domaine ne dépend ni de Fastify ni du pilote PostgreSQL.
+`main.ts` construit un pool partagé par trois adaptateurs distincts : incidents, sessions et sondes. `buildApp` reçoit leurs interfaces. Les tests injectent un stockage mémoire ; les cas d’usage peuvent être testés sans Fastify ni PostgreSQL.
 
-Le client importe des **types** depuis `shared` ; il n’importe pas le code serveur de gestion des sessions ou du stockage. Cependant, ce fichier partagé contient encore des contrats internes au backend : sa séparation est une évolution proposée plus bas.
+Le client utilise exclusivement les DTO de `shared/contracts.ts`. Les mappers sélectionnent les champs publics et normalisent les dates en ISO ; les schémas de réponse renforcent cette frontière. Les types DTO sont dérivés des schémas utilisés pour la validation Fastify et la génération d’OpenAPI. Le modèle métier reste interne au serveur.
+
+ESLint interdit les imports serveur depuis le client ou les contrats partagés, ainsi que les dépendances transport/infrastructure depuis le domaine et l’application. Les adaptations s’effectuent au démarrage, pas dans les cas d’usage.
 
 ## 4. Lecture et écriture d’un incident
 
 ### Lecture
 
-La route valide les paramètres, authentifie la session et demande au Store les incidents ou leur historique. Le tri de la liste utilise `created_at DESC, id DESC`, avec `limit` et `offset` bornés. Le départage par identifiant rend le tri déterministe, mais la pagination ne garantit pas une vue figée si de nouveaux incidents apparaissent entre deux pages.
+La route valide les paramètres, authentifie la session et appelle le cas d’usage de lecture qui utilise le port incidents. Le tri de la liste utilise `created_at DESC, id DESC`, avec `limit` et `offset` bornés. Le départage par identifiant rend le tri déterministe, mais la pagination ne garantit pas une vue figée si de nouveaux incidents apparaissent entre deux pages.
 
 ### Changement de statut
 
-Le client transmet l’identifiant, le statut cible et la version qu’il a lue. Le serveur vérifie le rôle puis ouvre une transaction dans le Store.
+Le client transmet l’identifiant, le statut cible et la version qu’il a lue. Le cas d’usage vérifie le rôle puis délègue à une opération atomique du repository incidents.
 
 ```mermaid
 sequenceDiagram
     participant C as Client
     participant H as Route HTTP
-    participant S as PostgresStore
+    participant A as Cas d’usage
+    participant S as Repository incidents
     participant P as PostgreSQL
     C->>H: Statut cible et version lue
-    H->>H: Validation, session et rôle
-    H->>S: transition(id, statut, version, acteur)
+    H->>H: Validation, session et CSRF
+    H->>A: changeStatus(id, statut, version, acteur)
+    A->>A: Vérifier le rôle
+    A->>S: transition(id, statut, version, acteur)
     S->>P: BEGIN et SELECT FOR UPDATE
     P-->>S: Incident courant
     S->>S: Comparer la version et vérifier la transition
     alt Version ou transition invalide
         S->>P: ROLLBACK
-        S-->>H: Erreur métier
+        S-->>A: Erreur métier
+        A-->>H: Code conflict
         H-->>C: HTTP 409
     else Changement autorisé
         S->>P: UPDATE et INSERT historique
         S->>P: COMMIT
-        S-->>H: Incident avec version suivante
+        S-->>A: Incident avec version suivante
+        A-->>H: Résultat
         H-->>C: HTTP 200
     end
 ```
@@ -152,7 +161,7 @@ L’historique est transactionnel mais n’est pas une preuve inviolable : un ad
 | Contexte         | Fonctionnement                                                                      | Limite à connaître                                                    |
 | ---------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | Développement    | Serveur TypeScript surveillé ; esbuild surveille le bundle React                    | Pas de garantie de rechargement automatique du navigateur             |
-| Build            | TypeScript compile serveur et domaine dans `dist` ; esbuild produit `public/assets` | Les schémas API ne génèrent pas encore les types client               |
+| Build            | TypeScript compile serveur et domaine dans `dist` ; esbuild produit `public/assets` | Types DTO inférés des schémas, sans génération de fichier             |
 | Docker local     | PostgreSQL, tâche de migration puis application ; volume persistant                 | Identifiants locaux exclusivement destinés au développement           |
 | Image            | Build multiétage, dépendances runtime et utilisateur non-root                       | Construire l’image ne prouve pas un parcours navigateur réussi        |
 | AWS de référence | ALB HTTPS, deux tâches Fargate privées, secret DB et CloudWatch                     | Réseau, ECR, certificat, DB et migrations sont des prérequis externes |
@@ -167,50 +176,25 @@ L’arrêt SIGTERM ferme le serveur et le pool avec une limite de temps. Les pro
 
 ## 8. Vérification des frontières
 
-| Niveau      | Preuve attendue                                 | Couverture actuelle                                               |
-| ----------- | ----------------------------------------------- | ----------------------------------------------------------------- |
-| Métier      | Transitions et autorisations sans HTTP ni DB    | Vérifiées principalement à travers l’API ; tests isolés à ajouter |
-| HTTP        | Validation, sessions, rôles, erreurs et sondes  | Tests Fastify avec `MemoryStore`                                  |
-| Persistance | Concurrence, rollback et SQL paramétré          | Tests sur PostgreSQL dédiés                                       |
-| Interface   | Session et historique réellement utilisables    | Suite navigateur ajoutée dans la PR #9                            |
-| Déploiement | Image exécutable, configuration et restauration | Construction en CI ; validation d’exploitation à compléter        |
+| Niveau      | Preuve attendue                                 | Couverture actuelle                                        |
+| ----------- | ----------------------------------------------- | ---------------------------------------------------------- |
+| Métier      | Transitions et autorisations sans HTTP ni DB    | Tests isolés du domaine et des cas d’usage                 |
+| HTTP        | Validation, sessions, rôles, erreurs et sondes  | Tests Fastify avec `MemoryStore`                           |
+| Persistance | Concurrence, rollback et SQL paramétré          | Tests sur PostgreSQL dédiés                                |
+| Interface   | Session et historique réellement utilisables    | Tests navigateur de session, rôles et historique           |
+| Déploiement | Image exécutable, configuration et restauration | Construction en CI ; validation d’exploitation à compléter |
 
 Les tests mémoire ne remplacent pas PostgreSQL : les transactions et les verrous doivent être vérifiés avec le moteur réel. Le [workflow CI](../.github/workflows/ci.yml) lance les migrations deux fois, les tests d’intégration, le build et l’audit. Consulter ses résultats pour distinguer les contrôles exécutés des capacités seulement documentées.
 
-## 9. Évolution proposée : cas d’usage et contrats
+## 9. Contrats et stratégie d’actualisation
 
-Cette section est une **cible de refactorisation**, pas la description des modules existants.
+`GET /api/openapi.json`, accessible avec une session, expose le document généré depuis les schémas des routes. Les contrats de session et d’incident partagent les mêmes sources que les types client. Modifier un champ exige donc de revoir le schéma, le mapping et les consommateurs ; aucun fichier OpenAPI manuel ne doit être synchronisé.
 
-| Couche cible   | Responsabilité                                             | Exemples                                   |
-| -------------- | ---------------------------------------------------------- | ------------------------------------------ |
-| Transport      | Valider l’entrée HTTP et convertir les erreurs en réponses | Routes Fastify, schémas et DTO             |
-| Application    | Autoriser et orchestrer une opération                      | `CreateIncident`, `ChangeIncidentStatus`   |
-| Domaine        | Définir transitions, invariants et erreurs métier          | Règles indépendantes de HTTP et PostgreSQL |
-| Ports          | Décrire les opérations de stockage nécessaires             | `IncidentRepository`, `SessionRepository`  |
-| Infrastructure | Implémenter les ports et l’atomicité                       | Adaptateurs PostgreSQL                     |
+L’autorisation d’écriture appartient aux cas d’usage : un appel depuis un autre transport ne peut pas contourner le rôle `reader`. L’authentification et le CSRF restent des contrôles HTTP. Les erreurs métier utilisent des codes ; seul le transport les traduit en 403, 404 ou 409.
 
-```mermaid
-flowchart TD
-    H["Transport HTTP"] --> A["Cas d’usage"]
-    A --> D["Règles du domaine"]
-    A --> R["Ports de persistance"]
-    P["Adaptateurs PostgreSQL"] --> R
-    P --> D
-```
+**Frontière atomique** : création et transition enregistrent aussi leur événement via un seul port. Il n’existe pas de repository d’audit appelé séparément. Le verrou, la vérification de version, la transition et les deux écritures restent dans une transaction PostgreSQL. Un préchargement depuis le cas d’usage ne doit pas remplacer cette vérification.
 
-Les flèches de ce diagramme représentent des dépendances de code : le cas d’usage dépend d’une interface, et l’adaptateur l’implémente. Le serveur assemble les implémentations au démarrage.
-
-**Ne pas casser l’atomicité pendant le découpage.** Séparer un repository d’incident et un repository d’audit, puis appeler deux écritures indépendantes, serait une régression. Les deux opérations doivent partager une même transaction, soit derrière un port atomique explicite, soit derrière une unité de travail réellement implémentée. Le verrou et la vérification de version doivent également rester dans cette frontière transactionnelle.
-
-Plan progressif :
-
-1. Extraire les opérations métier et leurs tests sans changer le contrat HTTP.
-2. Séparer les contrats de sessions et d’incidents, en conservant l’atomicité.
-3. Isoler les DTO HTTP des types et interfaces internes du domaine.
-4. Unifier schémas de validation, réponses et documentation OpenAPI.
-5. Regrouper le client par fonctionnalités session/incidents et définir une stratégie explicite d’invalidation du cache.
-
-Critères d’acceptation : un 409 ne modifie aucune donnée ; un échec de l’audit annule l’écriture ; aucun rôle interdit ne peut contourner l’autorisation ; les réponses restent compatibles avec le client ; les tests PostgreSQL et navigateur restent verts.
+Le client conserve un état local simple : après création ou transition, il recharge la première page. L’historique observe la version de son incident et se recharge lorsqu’elle change. Un 401 efface l’état de session ; un 409 reste visible et nécessite un rechargement avant une nouvelle décision. La déconnexion efface les incidents. Aucun cache externe ni bibliothèque de gestion des requêtes n’est nécessaire pour ce périmètre.
 
 ## 10. Évolutions conditionnées par un besoin
 

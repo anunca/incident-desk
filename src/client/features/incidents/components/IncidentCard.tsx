@@ -1,4 +1,4 @@
-import type { Incident, Status } from "../../shared/domain.js";
+import type { Incident, Status } from "../../../../shared/contracts.js";
 import { statusLabels, statusTransitions } from "../incident-status.js";
 import { IncidentHistory } from "./IncidentHistory.js";
 

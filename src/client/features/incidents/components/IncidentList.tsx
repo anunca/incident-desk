@@ -1,4 +1,4 @@
-import type { Incident, Status } from "../../shared/domain.js";
+import type { Incident, Status } from "../../../../shared/contracts.js";
 import { IncidentCard } from "./IncidentCard.js";
 
 interface IncidentListProps {

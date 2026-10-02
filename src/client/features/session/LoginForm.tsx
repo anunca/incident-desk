@@ -1,5 +1,5 @@
 import type { FormEvent } from "react";
-import type { Credentials } from "../api.js";
+import type { Credentials } from "../../api.js";
 
 interface LoginFormProps {
   busy: boolean;
