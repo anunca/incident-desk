@@ -5,3 +5,6 @@ coverage
 dist
 tests
 docs
+
+playwright-report/
+test-results/

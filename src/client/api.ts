@@ -7,6 +7,15 @@ export interface Credentials {
 export type NewIncident = Pick<Incident, "title" | "description" | "severity">;
 const PAGE_SIZE = 20;
 
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(path, {
     ...options,
@@ -17,13 +26,19 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     },
   });
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error);
+    const error = (await response.json().catch(() => null)) as {
+      error?: string;
+    } | null;
+    throw new ApiError(
+      response.status,
+      error?.error ?? "Le service est temporairement indisponible.",
+    );
   }
   return response.status === 204 ? (undefined as T) : response.json();
 }
 
 export const api = {
+  currentSession: () => request<{ role: Role }>("/api/session"),
   login: (credentials: Credentials) =>
     request<{ role: Role }>("/api/session", {
       method: "POST",

@@ -9,7 +9,7 @@ interface IncidentListProps {
   onRefresh: () => Promise<boolean>;
   onLoadMore: () => Promise<boolean>;
   onChangeStatus: (incident: Incident, status: Status) => Promise<boolean>;
-  onMessage: (message: string) => void;
+  onError: (error: unknown) => void;
 }
 export function IncidentList({
   incidents,
@@ -19,7 +19,7 @@ export function IncidentList({
   onRefresh,
   onLoadMore,
   onChangeStatus,
-  onMessage,
+  onError,
 }: IncidentListProps) {
   return (
     <section>
@@ -35,7 +35,7 @@ export function IncidentList({
           canEdit={canEdit}
           busy={busy}
           onChangeStatus={onChangeStatus}
-          onMessage={onMessage}
+          onError={onError}
         />
       ))}
       {hasMore && (

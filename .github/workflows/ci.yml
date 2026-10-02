@@ -37,5 +37,7 @@ jobs:
       - run: npm run migrate
       - run: npm run test:integration
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
       - run: npm audit --omit=dev --audit-level=high
       - run: docker build -t incident-desk:ci .

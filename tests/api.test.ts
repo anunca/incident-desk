@@ -38,6 +38,20 @@ const create = () =>
     },
   });
 describe("API security and lifecycle", () => {
+  it("restores a cookie session without exposing token or identity", async () => {
+    const response = await app.inject({
+      url: "/api/session",
+      headers: { cookie: `session=${token}` },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ role: "admin" });
+    expect(response.headers["cache-control"]).toBe("no-store");
+    expect((await app.inject("/api/session")).statusCode).toBe(401);
+    store.sessions.get(tokenHash(token))!.expires = new Date(0);
+    expect(
+      (await app.inject({ url: "/api/session", headers: auth() })).statusCode,
+    ).toBe(401);
+  });
   it("rejects anonymous access", async () => {
     expect((await app.inject("/api/incidents")).statusCode).toBe(401);
   });
