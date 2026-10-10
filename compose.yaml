@@ -1,0 +1,57 @@
+services:
+  db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_USER: incident
+      POSTGRES_PASSWORD: local-development-only
+      POSTGRES_DB: incidents
+    ports: ["127.0.0.1:5432:5432"]
+    volumes: ["database:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U incident -d incidents"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  db-test:
+    image: postgres:17-bookworm
+    profiles: ["test"]
+    environment:
+      POSTGRES_USER: incident
+      POSTGRES_PASSWORD: local-test-only
+      POSTGRES_DB: incidents_test
+    ports: ["127.0.0.1:5433:5432"]
+    tmpfs: ["/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U incident -d incidents_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+  migrate:
+    build:
+      context: .
+      target: build
+    environment:
+      DATABASE_URL: postgres://incident:local-development-only@db:5432/incidents
+    volumes:
+      - ./migrations:/app/migrations:ro
+      - ./scripts:/app/scripts:ro
+    command: ["npm", "run", "migrate"]
+    depends_on:
+      db:
+        condition: service_healthy
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgres://incident:local-development-only@db:5432/incidents
+      COOKIE_SECURE: "false"
+      NODE_ENV: development
+    ports: ["127.0.0.1:3000:3000"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+volumes:
+  database:

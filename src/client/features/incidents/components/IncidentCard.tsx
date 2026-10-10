@@ -1,0 +1,47 @@
+import type { Incident, Status } from "../../../../shared/contracts.js";
+import { statusLabels, statusTransitions } from "../incident-status.js";
+import { IncidentHistory } from "./IncidentHistory.js";
+
+interface IncidentCardProps {
+  incident: Incident;
+  canEdit: boolean;
+  busy: boolean;
+  onChangeStatus: (incident: Incident, status: Status) => Promise<boolean>;
+  onError: (error: unknown) => void;
+}
+export function IncidentCard({
+  incident,
+  canEdit,
+  busy,
+  onChangeStatus,
+  onError,
+}: IncidentCardProps) {
+  return (
+    <article>
+      <h3>{incident.title}</h3>
+      <p>{incident.description}</p>
+      <p>
+        {statusLabels[incident.status]} · {incident.severity} · version{" "}
+        {incident.version}
+      </p>
+      {canEdit && (
+        <div className="actions">
+          {statusTransitions[incident.status].map((status) => (
+            <button
+              key={status}
+              disabled={busy}
+              onClick={() => void onChangeStatus(incident, status)}
+            >
+              {statusLabels[status]}
+            </button>
+          ))}
+        </div>
+      )}
+      <IncidentHistory
+        id={incident.id}
+        version={incident.version}
+        report={onError}
+      />
+    </article>
+  );
+}
